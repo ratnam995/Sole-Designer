@@ -1,0 +1,67 @@
+<div *ngIf="!signup" class="card text-center" style="width: 30rem; margin-left:35%">
+  <!-- <img class="card-img-top" src="assets/doc-logo-login.png" alt="Card image cap"> -->
+  <div style="text-align: center">
+    <h3>Sole - Designer</h3>
+    <h5>-Design your style-</h5>
+  </div>
+  <div class="card-body">
+    <h3 class="card-title">Login</h3>
+    <p class="card-text">
+      <form>
+        <div class="form-group">
+          <label for="lInputEmail">Email</label>
+          <input type="text" class="form-control" id="lInputEmail" aria-describedby="emailHelp" name="lemail" [(ngModel)]="lEmail"
+            [disabled]="lDisable" placeholder="Enter User Email">
+        </div>
+        <div class="form-group">
+          <label for="lInputPassword">Password</label>
+          <input type="password" class="form-control" id="lInputPassword" [(ngModel)]="lPass" name="upass" [disabled]="lDisable" placeholder="Password">
+        </div>
+        <button type="submit" class="btn btn-primary" (click)="onLoginButtonClick()" [disabled]="lDisable">
+          <span *ngIf="!lDisable"> Log In </span>
+          <span *ngIf="lDisable">Please wait...
+            <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+          </span>
+        </button>
+        <button type="button" class="btn btn-primary" (click)="onRouteToSignUp()" [disabled]="lDisable">
+          Sign Up
+        </button>
+      </form>
+      <!-- <a href="#" class="btn btn-primary">Go somewhere</a> -->
+  </div>
+</div>
+<div *ngIf="signup" class="card text-center" style="width: 30rem; margin-left:35%">
+  <div style="text-align: center">
+    <h3>Sole - Designer</h3>
+    <h5>-Design your style-</h5>
+  </div>
+  <div class="card-body">
+    <h3 class="card-title">Signup</h3>
+    <p class="card-text">
+      <form>
+        <div class="form-group">
+            <label for="sInputFullName">Full Name</label>
+            <input type="text" class="form-control" id="sInputFullName" aria-describedby="emailHelp" name="sfullname" [(ngModel)]="sFullName"
+              [disabled]="sDisable" placeholder="Enter User Name">
+          </div>
+        <div class="form-group">
+          <label for="sInputEmail">Email</label>
+          <input type="text" class="form-control" id="sInputEmail" aria-describedby="emailHelp" name="semail" [(ngModel)]="sEmail"
+            [disabled]="sDisable" placeholder="Enter User Email">
+        </div>
+        <div class="form-group">
+          <label for="sInputPassword">Password</label>
+          <input type="password" class="form-control" id="sInputPassword" [(ngModel)]="sPass" name="spass" [disabled]="disable" placeholder="Password">
+        </div>
+        <button type="submit" class="btn btn-primary" (click)="onSignupButtonClick()" [disabled]="sDisable">
+          <span *ngIf="!sDisable"> Sign Up </span>
+          <span *ngIf="sDisable">Please wait...
+            <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+          </span>
+        </button>
+        <button type="submit" class="btn btn-primary" (click)="onBackToLoginClick()" [disabled]="sDisable">
+          Back
+        </button>
+      </form>
+  </div>
+</div>
