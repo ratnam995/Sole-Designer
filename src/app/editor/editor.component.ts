@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from "@angular/router";
 
 import 'fabric';
+import { HttpService } from '../shared/services/http-service';
 declare const fabric: any;
 
 @Component({
@@ -12,8 +14,6 @@ export class EditorComponent implements OnInit {
 
   private canvas: any;
   private props: any = {
-    canvasFill: '#ffffff',
-    canvasImage: '',
     id: null,
     opacity: null,
     fill: null,
@@ -34,25 +34,21 @@ export class EditorComponent implements OnInit {
     height: 800
   };
 
-  private json: any;
-  private globalEditor: boolean = false;
   private textEditor: boolean = false;
   private imageEditor: boolean = false;
-  private figureEditor: boolean = false;
   private selected: any;
 
-  constructor() { }
+  public previousFileListLoaded:boolean= false;
+  public previousFiles=[];
+  public fileName="";
+
+  constructor(
+    private router: Router,
+    private httpService: HttpService
+  ) { }
 
   ngOnInit() {
-
-    //setup front side canvas
-    this.canvas = new fabric.Canvas('canvas', {
-      hoverCursor: 'pointer',
-      selection: true,
-      selectionBorderColor: 'blue'
-    });
-
-    // this.canvas = new fabric.Canvas('canvas');
+    this.fetchPreviouslySavedCanvasNames();
     this.canvas.clipTo = function (ctx){
         ctx.strokeStyle = '#999999';
         ctx.beginPath();
@@ -82,21 +78,14 @@ export class EditorComponent implements OnInit {
         this.selected = selectedObject
         selectedObject.hasRotatingPoint = true;
         selectedObject.transparentCorners = false;
-        // selectedObject.cornerColor = 'rgba(255, 87, 34, 0.7)';
         this.resetPanels();
 
         if (selectedObject.type !== 'group' && selectedObject) {
 
-          this.getId();
-          this.getOpacity();
+          this.getItemId();
+          this.getItemOpacity();
 
           switch (selectedObject.type) {
-            case 'rect':
-            case 'circle':
-            case 'triangle':
-              this.figureEditor = true;
-              this.getFill();
-              break;
             case 'i-text':
               this.textEditor = true;
               this.getLineHeight();
@@ -109,7 +98,6 @@ export class EditorComponent implements OnInit {
               this.getFontFamily();
               break;
             case 'image':
-              console.log('image');
               break;
           }
         }
@@ -122,25 +110,49 @@ export class EditorComponent implements OnInit {
 
     this.canvas.setWidth(this.size.width);
     this.canvas.setHeight(this.size.height);
-
-    // get references to the html canvas element & its context
-    // this.canvas.on('mouse:down', (e) => {
-    // let canvasElement: any = document.getElementById('canvas');
-    // console.log(canvasElement)
-    // });
   }
 
 
-  /*------------------------Block elements------------------------*/
+  fetchPreviouslySavedCanvasNames(){
+    this.previousFiles=[];
+    if(localStorage.getItem('userID')){
+      this.httpService.post("fetchCanvasNames", { userID: localStorage.getItem('userID')})
+      .subscribe((response)=>{
+        if(response.hasOwnProperty("success")){
+          if(response.hasOwnProperty('results') && response.results.length){
+            this.previousFiles= response.results.map(singleResponseObj=> singleResponseObj.canvas_name);
+          }
+          else{
+            this.previousFiles=[];
+          }
+        }
+        else{
+          this.previousFiles=[];
+        }
+        this.previousFileListLoaded=true;
+      },
+      (error)=>{
+        console.log("Error while fetching canvas names", error);
+      });
+      this.canvas = new fabric.Canvas('canvas', {
+        hoverCursor: 'pointer',
+        selection: true,
+        selectionBorderColor: 'blue'
+      });
+    }
+    else{
+      if(confirm("Please login again")){
+        this.router.navigate(['']);
+      }
+    }
+  }
 
-  //Block "Size"
   changeSize(event: any) {
     this.canvas.setWidth(this.size.width);
     this.canvas.setHeight(this.size.height);
   }
 
-  //Block "Add text"
-  addText() {
+  addTextToCanvas() {
     let textString = this.textString;
     let text = new fabric.IText(textString, {
       left: 170,
@@ -153,35 +165,13 @@ export class EditorComponent implements OnInit {
       fontWeight: '',
       hasRotatingPoint: true
     });
-    this.extend(text, this.randomId());
+    this.extend(text, this.generateItemId());
     this.canvas.add(text);
     this.selectItemAfterAdded(text);
     this.textString = '';
   }
 
-  //Block "Add images"
-  getImgPolaroid(event: any) {
-    let el = event.target;
-    fabric.Image.fromURL(el.src, (image) => {
-      image.set({
-        left: 10,
-        top: 10,
-        angle: 0,
-        padding: 10,
-        cornersize: 10,
-        hasRotatingPoint: true,
-        peloas: 12
-      });
-      image.setWidth(150);
-      image.setHeight(150);
-      this.extend(image, this.randomId());
-      this.canvas.add(image);
-      this.selectItemAfterAdded(image);
-    });
-  }
-
-  //Block "Upload Image"
-  addImageOnCanvas(url) {
+  addImageToCanvas(url) {
     if (url) {
       fabric.Image.fromURL(url, (image) => {
         image.set({
@@ -194,15 +184,14 @@ export class EditorComponent implements OnInit {
         });
         image.setWidth(200);
         image.setHeight(200);
-        this.extend(image, this.randomId());
+        this.extend(image, this.generateItemId());
         this.canvas.add(image);
         this.selectItemAfterAdded(image);
       });
     }
   }
 
-  readUrl(event) {
-    // console.log("event===>",event);
+  readFileUrl(event) {
     if (event.target.files && event.target.files[0]) {
       var reader = new FileReader();
       reader.onload = (event) => {
@@ -217,41 +206,7 @@ export class EditorComponent implements OnInit {
     this.urlList = [];
   };
 
-  //Block "Add figure"
-  addFigure(figure) {
-    let add: any;
-    switch (figure) {
-      case 'rectangle':
-        add = new fabric.Rect({
-          width: 200, height: 100, left: 10, top: 10, angle: 0,
-          fill: '#3f51b5'
-        });
-        break;
-      case 'square':
-        add = new fabric.Rect({
-          width: 100, height: 100, left: 10, top: 10, angle: 0,
-          fill: '#4caf50'
-        });
-        break;
-      case 'triangle':
-        add = new fabric.Triangle({
-          width: 100, height: 100, left: 10, top: 10, fill: '#2196f3'
-        });
-        break;
-      case 'circle':
-        add = new fabric.Circle({
-          radius: 50, left: 10, top: 10, fill: '#ff5722'
-        });
-        break;
-    }
-    this.extend(add, this.randomId());
-    this.canvas.add(add);
-    this.selectItemAfterAdded(add);
-  }
-
-  /*Canvas*/
-
-  cleanSelect() {
+  removeSelection() {
     this.canvas.deactivateAllWithDispatch().renderAll();
   }
 
@@ -259,13 +214,6 @@ export class EditorComponent implements OnInit {
     this.canvas.deactivateAllWithDispatch().renderAll();
     this.canvas.setActiveObject(obj);
   }
-
-  // setCanvasFill() {
-  //   if (!this.props.canvasImage) {
-  //     this.canvas.backgroundColor = this.props.canvasFill;
-  //     this.canvas.renderAll();
-  //   }
-  // }
 
   extend(obj, id) {
     obj.toObject = (function (toObject) {
@@ -277,21 +225,9 @@ export class EditorComponent implements OnInit {
     })(obj.toObject);
   }
 
-  setCanvasImage() {
-    let self = this;
-    if (this.props.canvasImage) {
-      this.canvas.setBackgroundColor({ source: this.props.canvasImage, repeat: 'repeat' }, function () {
-        // self.props.canvasFill = '';
-        self.canvas.renderAll();
-      });
-    }
-  }
-
-  randomId() {
+  generateItemId() {
     return Math.floor(Math.random() * 999999) + 1;
   }
-
-  /*------------------------Global actions for element------------------------*/
 
   getActiveStyle(styleName, object) {
     object = object || this.canvas.getActiveObject();
@@ -301,7 +237,6 @@ export class EditorComponent implements OnInit {
       ? (object.getSelectionStyles()[styleName] || '')
       : (object[styleName] || '');
   }
-
 
   setActiveStyle(styleName, value, object) {
     object = object || this.canvas.getActiveObject();
@@ -336,22 +271,13 @@ export class EditorComponent implements OnInit {
     this.canvas.renderAll();
   }
 
-  clone() {
+  cloneItem() {
     let activeObject = this.canvas.getActiveObject(),
       activeGroup = this.canvas.getActiveGroup();
 
     if (activeObject) {
       let clone;
       switch (activeObject.type) {
-        case 'rect':
-          clone = new fabric.Rect(activeObject.toObject());
-          break;
-        case 'circle':
-          clone = new fabric.Circle(activeObject.toObject());
-          break;
-        case 'triangle':
-          clone = new fabric.Triangle(activeObject.toObject());
-          break;
         case 'i-text':
           clone = new fabric.IText('', activeObject.toObject());
           break;
@@ -360,42 +286,38 @@ export class EditorComponent implements OnInit {
           break;
       }
       if (clone) {
-        clone.set({ left: 10, top: 10 });
+        clone.set({ left: 150, top: 100 });
         this.canvas.add(clone);
         this.selectItemAfterAdded(clone);
       }
     }
   }
 
-  getId() {
-    this.props.id = this.canvas.getActiveObject().toObject().id;
+  getItemId() {
+    if(this.canvas && this.canvas.getActiveObject())
+      this.props.id = this.canvas.getActiveObject().toObject().id;
   }
 
-  setId() {
+  setItemId() {
     let val = this.props.id;
     let complete = this.canvas.getActiveObject().toObject();
-    console.log(complete);
     this.canvas.getActiveObject().toObject = () => {
       complete.id = val;
       return complete;
     };
   }
 
-  getOpacity() {
+  getItemOpacity() {
     this.props.opacity = this.getActiveStyle('opacity', null) * 100;
   }
 
-  setOpacity() {
+  setItemOpacity() {
     this.setActiveStyle('opacity', parseInt(this.props.opacity) / 100, null);
   }
 
   getFill() {
     this.props.fill = this.getActiveStyle('fill', null);
   }
-
-  // setFill() {
-  //   this.setActiveStyle('fill', this.props.fill, null);
-  // }
 
   getLineHeight() {
     this.props.lineHeight = this.getActiveStyle('lineHeight', null);
@@ -439,7 +361,6 @@ export class EditorComponent implements OnInit {
     this.setActiveStyle('fontStyle', this.props.fontStyle ? 'italic' : '', null);
   }
 
-
   getTextDecoration() {
     this.props.TextDecoration = this.getActiveStyle('textDecoration', null);
   }
@@ -459,7 +380,6 @@ export class EditorComponent implements OnInit {
     return this.props.TextDecoration.includes(value);
   }
 
-
   getTextAlign() {
     this.props.textAlign = this.getActiveProp('textAlign');
   }
@@ -477,10 +397,7 @@ export class EditorComponent implements OnInit {
     this.setActiveProp('fontFamily', this.props.fontFamily);
   }
 
-  /*System*/
-
-
-  removeSelected() {
+  removeSelectedItem() {
     let activeObject = this.canvas.getActiveObject(),
       activeGroup = this.canvas.getActiveGroup();
 
@@ -498,7 +415,7 @@ export class EditorComponent implements OnInit {
     }
   }
 
-  bringToFront() {
+  bringItemToFront() {
     let activeObject = this.canvas.getActiveObject(),
       activeGroup = this.canvas.getActiveGroup();
 
@@ -515,7 +432,7 @@ export class EditorComponent implements OnInit {
     }
   }
 
-  sendToBack() {
+  sendItemToBack() {
     let activeObject = this.canvas.getActiveObject(),
       activeGroup = this.canvas.getActiveGroup();
 
@@ -538,70 +455,98 @@ export class EditorComponent implements OnInit {
     }
   }
 
-  rasterize() {
-    if (!fabric.Canvas.supports('toDataURL')) {
-      alert('This browser doesn\'t provide means to serialize canvas to an image');
+  fileSelected(event){
+    this.fileName="";
+    if(event.target.value){
+      let reqObj={
+        userID: localStorage.getItem("userID"),
+        canvasName: event.target.value
+      }
+      this.httpService.post('fetchCanvas', reqObj)
+      .subscribe((response)=>{
+        this.fileName=response.results[0].canvas_name;
+        this.loadCanvasFromJSON(response.results[0].canvas_json);
+      })
     }
-    else {
-      console.log(this.canvas.toDataURL('png'))
-      //window.open(this.canvas.toDataURL('png'));
-      var image = new Image();
-      image.src = this.canvas.toDataURL('png')
-      var w = window.open("");
-      w.document.write(image.outerHTML);
+    else{
+      this.canvas.clear();
     }
   }
-
-  rasterizeSVG() {
-    console.log(this.canvas.toSVG())
-    // window.open(
-    //   'data:image/svg+xml;utf8,' +
-    //   encodeURIComponent(this.canvas.toSVG()));
-    // console.log(this.canvas.toSVG())
-    // var image = new Image();
-    // image.src = this.canvas.toSVG()
-    var w = window.open("");
-    w.document.write(this.canvas.toSVG());
-  };
-
-
+  
   saveCanvasToJSON() {
     let json = JSON.stringify(this.canvas);
-    localStorage.setItem('Kanvas', json);
-    console.log('json');
-    console.log(json);
+    if(localStorage.getItem('userID')){
+      var fileName = prompt("Please enter file name", this.fileName.length? this.fileName: "");
+      let canvasObj={
+        userID: localStorage.getItem('userID'),
+        canvasJSON: json,
+        canvasName: fileName
+      }
+      if (fileName && fileName.length) {
+        if(this.fileName.length){
+          this.httpService.update('updateCanvas', canvasObj)
+          .subscribe(
+            (response)=>{
+              if(response.hasOwnProperty('success')){
+                alert("SuccessFully Updated.");
+                this.fetchPreviouslySavedCanvasNames();
+              }
+              else{
+                if(response.hasOwnProperty('error')){
+                  alert("Update failed");
+                }
+              }
+            },
+            (error)=>{
+              alert("Update failed");
+            }
+          )
+        }
+        else{
+          this.httpService.post('saveCanvas', canvasObj)
+          .subscribe(
+            (response)=>{
+              if(response.hasOwnProperty('success')){
+                alert("SuccessFully Saved.");
+                this.fetchPreviouslySavedCanvasNames();
+              }
+              else{
+                if(response.hasOwnProperty('error')){
+                  alert("Save failed");
+                }
+              }
+            },
+            (error)=>{
+              alert("Save failed");
+            })
+        }
+      }
+
+    }
+    else{
+      this.router.navigate(['']);
+    }
 
   }
 
-  loadCanvasFromJSON() {
-    let CANVAS = localStorage.getItem('Kanvas');
-    console.log('CANVAS');
-    console.log(CANVAS);
-
-    // and load everything from the same json
-    this.canvas.loadFromJSON(CANVAS, () => {
-      console.log('CANVAS untar');
-      console.log(CANVAS);
-
-      // making sure to render canvas at the end
+  loadCanvasFromJSON(canvasJson) {
+    this.canvas.loadFromJSON(canvasJson, () => {
       this.canvas.renderAll();
-
-      // and checking if object's "name" is preserved
-      console.log('this.canvas.item(0).name');
-      console.log(this.canvas);
     });
 
-  };
-
-  rasterizeJSON() {
-    this.json = JSON.stringify(this.canvas, null, 2);
   }
 
   resetPanels() {
     this.textEditor = false;
     this.imageEditor = false;
-    this.figureEditor = false;
   }
 
+  onLogoutClick(){
+    localStorage.clear();
+    this.router.navigate(['']);
+  }
 
+  onSaveClick(){
+    this.saveCanvasToJSON();
+  }
 }
