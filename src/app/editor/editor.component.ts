@@ -41,6 +41,8 @@ export class EditorComponent implements OnInit {
   public previousFileListLoaded:boolean= false;
   public previousFiles=[];
   public fileName="";
+  public saving:boolean=false;
+  public loadingDesign:boolean=false;
 
   constructor(
     private router: Router,
@@ -49,6 +51,11 @@ export class EditorComponent implements OnInit {
 
   ngOnInit() {
     this.fetchPreviouslySavedCanvasNames();
+    this.canvas = new fabric.Canvas('canvas', {
+      hoverCursor: 'pointer',
+      selection: true,
+      selectionBorderColor: 'blue'
+    });
     this.canvas.clipTo = function (ctx){
         ctx.strokeStyle = '#999999';
         ctx.beginPath();
@@ -133,11 +140,6 @@ export class EditorComponent implements OnInit {
       },
       (error)=>{
         console.log("Error while fetching canvas names", error);
-      });
-      this.canvas = new fabric.Canvas('canvas', {
-        hoverCursor: 'pointer',
-        selection: true,
-        selectionBorderColor: 'blue'
       });
     }
     else{
@@ -456,6 +458,7 @@ export class EditorComponent implements OnInit {
   }
 
   fileSelected(event){
+    this.loadingDesign=true;
     this.fileName="";
     if(event.target.value){
       let reqObj={
@@ -470,6 +473,7 @@ export class EditorComponent implements OnInit {
     }
     else{
       this.canvas.clear();
+      this.loadingDesign=false;
     }
   }
   
@@ -490,15 +494,18 @@ export class EditorComponent implements OnInit {
               if(response.hasOwnProperty('success')){
                 alert("SuccessFully Updated.");
                 this.fetchPreviouslySavedCanvasNames();
+                this.saving=false;
               }
               else{
                 if(response.hasOwnProperty('error')){
                   alert("Update failed");
+                  this.saving=false;
                 }
               }
             },
             (error)=>{
               alert("Update failed");
+              this.saving=false;
             }
           )
         }
@@ -509,22 +516,29 @@ export class EditorComponent implements OnInit {
               if(response.hasOwnProperty('success')){
                 alert("SuccessFully Saved.");
                 this.fetchPreviouslySavedCanvasNames();
+                this.saving=false;
               }
               else{
                 if(response.hasOwnProperty('error')){
                   alert("Save failed");
+                  this.saving=false;
                 }
               }
             },
             (error)=>{
               alert("Save failed");
+              this.saving=false;
             })
         }
+      }
+      else{
+        this.saving=false;
       }
 
     }
     else{
       this.router.navigate(['']);
+      this.saving=false;
     }
 
   }
@@ -532,6 +546,7 @@ export class EditorComponent implements OnInit {
   loadCanvasFromJSON(canvasJson) {
     this.canvas.loadFromJSON(canvasJson, () => {
       this.canvas.renderAll();
+      this.loadingDesign=false;
     });
 
   }
@@ -547,6 +562,7 @@ export class EditorComponent implements OnInit {
   }
 
   onSaveClick(){
+    this.saving=true;
     this.saveCanvasToJSON();
   }
 }
