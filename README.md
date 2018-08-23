@@ -9,6 +9,7 @@ This project was generated with [Angular CLI](https://github.com/angular/angular
 1) Git clone the repository (via ssh or https).
 2) Run command `npm install` in the project directory.
 3) Run command `ng serve` to start dev server (ng server --port <port_number>, if port 4200 is already in use).
+4) Start Backend application. Follow steps mentioned in [Sole-Designer-BE](https://github.com/ratnam995/Sole-Designer-BE) Readme
 
 ## Development server
 
