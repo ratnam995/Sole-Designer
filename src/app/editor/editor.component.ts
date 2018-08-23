@@ -510,25 +510,32 @@ export class EditorComponent implements OnInit {
           )
         }
         else{
-          this.httpService.post('saveCanvas', canvasObj)
-          .subscribe(
-            (response)=>{
-              if(response.hasOwnProperty('success')){
-                alert("SuccessFully Saved.");
-                this.fetchPreviouslySavedCanvasNames();
-                this.saving=false;
-              }
-              else{
-                if(response.hasOwnProperty('error')){
-                  alert("Save failed");
+          if(this.previousFiles && this.previousFiles.indexOf(fileName) >= 0){
+            alert("Filename already used. Please try with some other name.");
+            this.saving=false;
+          }
+          else{
+            this.httpService.post('saveCanvas', canvasObj)
+            .subscribe(
+              (response)=>{
+                if(response.hasOwnProperty('success')){
+                  alert("SuccessFully Saved.");
+                  this.fetchPreviouslySavedCanvasNames();
                   this.saving=false;
                 }
+                else{
+                  if(response.hasOwnProperty('error')){
+                    alert("Save failed");
+                    this.saving=false;
+                  }
+                }
+              },
+              (error)=>{
+                alert("Save failed");
+                this.saving=false;
               }
-            },
-            (error)=>{
-              alert("Save failed");
-              this.saving=false;
-            })
+              )
+          }
         }
       }
       else{
