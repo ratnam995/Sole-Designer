@@ -4,6 +4,12 @@ A design editor, where user can upload images and add it to there t-shirt.
 
 This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 1.2.6.
 
+## Steps to start the application.
+
+1) Git clone the repository (via ssh or https).
+2) Run command `npm install` in the project directory.
+3) Run command `ng serve` to start dev server (ng server --port <port_number>, if port 4200 is already in use).
+
 ## Development server
 
 Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
